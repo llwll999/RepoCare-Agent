@@ -11,3 +11,9 @@ class TaskResponse(BaseModel):
     task_id: str
     title: str
     state: str
+
+
+class ApprovalRequest(BaseModel):
+    approved: bool
+    approver: str = Field(min_length=2, max_length=50)
+    plan_id: str
