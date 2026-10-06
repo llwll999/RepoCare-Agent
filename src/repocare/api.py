@@ -4,9 +4,9 @@ from fastapi import FastAPI, HTTPException
 
 from repocare.api_models import CreateIssueRequest, TaskResponse
 from repocare.db import create_db_and_tables
-from repocare.repository import create_task, get_task as get_task_from_db
+from repocare.repository import create_task
+from repocare.repository import get_task as get_task_from_db
 from repocare.state import TaskState
-
 
 app = FastAPI(title="RepoCare Agent")
 

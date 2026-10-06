@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RepoCare 三 Agent 缺陷修复台</title>
+    <style>
+      :root { color-scheme: light; --ink:#172033; --muted:#65738a; --line:#d9e0ea; --bg:#f4f7fb; --card:#fff; --blue:#2764d8; --green:#168255; --orange:#a85d00; --red:#b42318; }
+      * { box-sizing:border-box; }
+      body { background:var(--bg); color:var(--ink); font-family:Inter,"Microsoft YaHei",system-ui,sans-serif; margin:0; }
+      header { background:#111c32; color:white; padding:20px max(20px,calc((100vw - 1180px)/2)); }
+      header h1 { font-size:21px; margin:0; }
+      header p { color:#c7d4ee; font-size:14px; margin:6px 0 0; }
+      main { margin:0 auto; max-width:1180px; padding:20px; }
+      .notice { background:#eaf2ff; border-left:4px solid var(--blue); font-size:14px; line-height:1.6; margin-bottom:16px; padding:12px 14px; }
+      .outcome { align-items:center; background:#e8f8ee; border:1px solid #91d5ae; border-radius:12px; display:flex; gap:14px; line-height:1.55; margin-bottom:16px; padding:16px; }
+      .outcome-icon { align-items:center; background:#168255; border-radius:50%; color:#fff; display:flex; flex:0 0 auto; font-size:20px; font-weight:700; height:38px; justify-content:center; width:38px; }
+      .outcome h2 { color:#0f673f; margin:0 0 4px; }
+      .grid { display:grid; gap:16px; grid-template-columns:300px 1fr 285px; }
+      .card { background:var(--card); border:1px solid var(--line); border-radius:12px; min-width:0; padding:16px; }
+      h2 { font-size:15px; margin:0 0 14px; }
+      h3 { font-size:14px; margin:0; }
+      label { display:block; font-size:13px; font-weight:600; margin:14px 0 6px; }
+      input, textarea { border:1px solid #bfc9d8; border-radius:8px; color:var(--ink); font:inherit; font-size:14px; padding:9px; width:100%; }
+      textarea { min-height:144px; resize:vertical; }
+      button { border:0; border-radius:8px; cursor:pointer; font:inherit; font-size:14px; font-weight:600; padding:10px 12px; width:100%; }
+      button:disabled { cursor:not-allowed; opacity:.55; }
+      .primary { background:var(--blue); color:white; margin-top:16px; }
+      .approval { background:var(--green); color:white; }
+      .secondary { background:#e9edf4; color:var(--ink); margin-top:9px; }
+      .warning { background:#fff3dc; border-left:3px solid var(--orange); font-size:12px; line-height:1.6; margin-top:14px; padding:10px; }
+      .hidden { display:none; }
+      .pipeline { align-items:center; display:grid; grid-template-columns:1fr 24px 1fr 24px 1fr; margin:4px 0 18px; }
+      .stage { color:var(--muted); font-size:12px; text-align:center; }
+      .stage .dot { align-items:center; background:#edf1f6; border:1px solid var(--line); border-radius:50%; display:flex; height:28px; justify-content:center; margin:0 auto 6px; width:28px; }
+      .stage.active { color:var(--blue); font-weight:700; }
+      .stage.done { color:var(--green); font-weight:700; }
+      .stage.active .dot { background:#e8f0ff; border-color:var(--blue); }
+      .stage.done .dot { background:#e4f6ed; border-color:var(--green); }
+      .pipe { background:var(--line); height:2px; }
+      .pipe.done { background:var(--green); }
+      .agent { border:1px solid var(--line); border-radius:10px; margin-top:10px; overflow:hidden; }
+      .agent-head { align-items:center; background:#f8faff; display:flex; justify-content:space-between; padding:11px 12px; }
+      .agent-body { font-size:13px; line-height:1.55; padding:12px; }
+      .agent-role { color:var(--muted); font-size:12px; margin:5px 0 10px; }
+      .badge { border-radius:999px; font-size:11px; font-weight:700; padding:4px 8px; }
+      .badge.pending { background:#edf1f6; color:#64748b; }
+      .badge.waiting { background:#fff2d8; color:#9a5800; }
+      .badge.done { background:#e4f6ed; color:#0c7045; }
+      .badge.error { background:#ffe8e7; color:#b42318; }
+      .evidence { background:#f7f9fc; border-left:3px solid var(--blue); margin-top:8px; padding:9px; }
+      .rag-panel { background:#f1ecff; border-left:3px solid #7048c8; margin-top:12px; padding:10px; }
+      .rag-panel h4 { font-size:13px; margin:0 0 8px; }
+      .rag-item { border-top:1px solid #ddd4f4; font-size:12px; line-height:1.55; margin-top:8px; padding-top:8px; }
+      .rag-score { color:#7048c8; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:11px; }
+      .model-insight { background:#eef8f3; border-left:3px solid var(--green); margin-top:12px; padding:10px; }
+      .model-insight p { margin:6px 0; }
+      .model-insight ul { margin:6px 0 0; padding-left:18px; }
+      .model-fallback { background:#fff7e9; border-left:3px solid var(--orange); margin-top:12px; padding:10px; }
+      .path { color:var(--blue); font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:12px; }
+      pre { background:#172033; border-radius:8px; color:#e6edf8; font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; overflow:auto; padding:12px; white-space:pre-wrap; }
+      .approval-box { background:#fff7e9; border-left:3px solid var(--orange); margin-top:10px; padding:10px; }
+      .feedback { border-top:1px solid var(--line); margin-top:16px; padding-top:14px; }
+      .trace { max-height:440px; overflow:auto; }
+      .chat { display:flex; flex-direction:column; gap:9px; margin-bottom:16px; max-height:360px; overflow:auto; }
+      .bubble { border-radius:10px; font-size:12px; line-height:1.55; max-width:96%; padding:9px 10px; }
+      .bubble .speaker { display:block; font-size:11px; font-weight:700; margin-bottom:3px; }
+      .bubble.user { align-self:flex-end; background:#e7efff; }
+      .bubble.debugger { background:#eef8f3; }
+      .bubble.modifier { background:#fff4e2; }
+      .bubble.tester, .bubble.system { background:#f2f4f7; }
+      .memory-box { background:#f8faff; border:1px solid var(--line); border-radius:10px; font-size:12px; line-height:1.55; margin:12px 0 16px; padding:10px; }
+      .memory-box h3 { margin-bottom:7px; }
+      .memory-item { border-top:1px solid var(--line); margin-top:8px; padding-top:8px; }
+      .delivery { background:#f4efff; border-left:3px solid #7048c8; margin-top:12px; padding:11px; }
+      .confirm-check { align-items:flex-start; display:flex; font-size:12px; font-weight:400; gap:8px; line-height:1.5; margin:10px 0; }
+      .confirm-check input { height:16px; margin:1px 0 0; padding:0; width:16px; }
+      .trace-row { border-bottom:1px solid var(--line); font-size:12px; line-height:1.5; padding:10px 0; }
+      .trace-row:first-child { padding-top:0; }
+      .trace-num { color:var(--muted); display:inline-block; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; width:25px; }
+      .metric { align-items:center; border-bottom:1px solid var(--line); display:flex; font-size:13px; justify-content:space-between; padding:9px 0; }
+      .metric span:first-child { color:var(--muted); }
+      .metric strong { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+      .output { background:#172033; border-radius:8px; color:#e6edf8; font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; margin-top:10px; max-height:180px; overflow:auto; padding:10px; white-space:pre-wrap; }
+      #message { color:var(--muted); font-size:13px; margin-top:10px; min-height:20px; }
+      @media (max-width:900px) { .grid { grid-template-columns:1fr; } .trace { max-height:none; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>RepoCare 三 Agent 缺陷修复台</h1>
+      <p>调试 Agent 取证 · 修改 Agent 提案 · 测试 Agent 独立验证</p>
+    </header>
+    <main>
+      <div class="notice"><strong>这是可运行的本地 Sandbox Demo。</strong>第一次批准只会在临时目录应用补丁并验证；无论是教学样例还是综测小程序，真实源码都不会改变。只有测试通过后，你勾选“确认写入”并在弹窗中再次确认，系统才允许落地。</div>
+      <section id="outcome" class="outcome hidden"></section>
+      <div class="grid">
+        <section class="card">
+          <h2>输入一个自然语言 Bug</h2>
+          <label for="title">标题</label>
+          <input id="title" value="同一网页条目重复提交后，综测智育分重复累计" />
+          <label for="description">问题描述</label>
+          <textarea id="description">学生在“智育”板块的网页第 2 项误点提交两次同一获奖材料。两条材料都可能被审核为认定通过，按学生汇总会把同一项分值重复累计。请定位是否缺少提交幂等性校验，给出最小修复方案。只允许修改云函数 proofs.create；不要修改前端、不要删除历史数据，必须先在模拟云函数 Sandbox 中复现并验证。</textarea>
+          <button id="start" class="primary">运行调试 Agent</button>
+          <button id="load-zongce" class="secondary">重置为“综测智育分重复提交”演示</button>
+          <div id="message">等待你提交 Issue。</div>
+          <div id="feedback-panel" class="feedback hidden">
+            <h3>用户中途追加约束</h3>
+            <label for="feedback">新约束</label>
+            <input id="feedback" value="只允许改导出逻辑，不允许修改测试。" />
+            <button id="send-feedback" class="secondary">提交反馈，废弃旧审批</button>
+          </div>
+        </section>
+        <section class="card">
+          <h2>三 Agent 运行过程 <span id="run-state" class="badge pending">INTAKE</span></h2>
+          <div class="pipeline">
+            <div id="stage-debug" class="stage"><div class="dot">1</div>取证</div><div id="pipe-1" class="pipe"></div>
+            <div id="stage-patch" class="stage"><div class="dot">2</div>提案/批准</div><div id="pipe-2" class="pipe"></div>
+            <div id="stage-test" class="stage"><div class="dot">3</div>验证</div>
+          </div>
+          <article class="agent">
+            <div class="agent-head"><h3>调试 Agent</h3><span id="debug-status" class="badge pending">等待 Issue</span></div>
+            <div id="debug-body" class="agent-body"><div class="agent-role">只读搜索：代码、领域模型、失败测试；输出可追溯根因证据。</div>还没有开始读取项目文件。</div>
+          </article>
+          <article class="agent">
+            <div class="agent-head"><h3>修改 Agent</h3><span id="patch-status" class="badge pending">等待证据</span></div>
+            <div id="patch-body" class="agent-body"><div class="agent-role">只生成一个受控 diff，不能直接写文件。</div>等待调试 Agent 的证据。</div>
+          </article>
+          <article class="agent">
+            <div class="agent-head"><h3>测试 Agent</h3><span id="test-status" class="badge pending">等待补丁</span></div>
+            <div id="test-body" class="agent-body"><div class="agent-role">独立在临时 Sandbox 中运行真实回归测试。</div>批准补丁后才会执行。</div>
+          </article>
+        </section>
+        <aside class="card">
+          <h2>Agent 对话</h2>
+          <div id="chat" class="chat"><div class="bubble system"><span class="speaker">系统</span>等待你提交一个 Bug。</div></div>
+          <div class="memory-box">
+            <h3>当前短期记忆</h3>
+            <div id="working-memory">未创建任务。</div>
+            <h3 style="margin-top:12px">长期记忆（已验证经验）</h3>
+            <div id="long-memory">当前没有可复用的已验证经验。</div>
+          </div>
+          <h2>Harness Trace</h2>
+          <div id="trace" class="trace"><div class="trace-row"><span class="trace-num">01</span>等待运行。</div></div>
+          <div class="metric"><span>证据引用数</span><strong id="evidence-count">0</strong></div>
+          <div class="metric"><span>RAG 本地知识命中</span><strong id="rag-count">0</strong></div>
+          <div class="metric"><span>诊断模式</span><strong id="model-mode">—</strong></div>
+          <div class="metric"><span>工具调用</span><strong id="tool-count">0</strong></div>
+          <div class="metric"><span>未授权写入</span><strong id="write-count">0</strong></div>
+          <div class="metric"><span>测试耗时</span><strong id="duration">—</strong></div>
+          <div id="test-output" class="output hidden"></div>
+        </aside>
+      </div>
+    </main>
+    <script>
+      let run = null;
+      let scenario = 'zongce';
+      const $ = (id) => document.getElementById(id);
+      const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+      const setStatus = (id, text, tone) => { const node = $(id); node.textContent = text; node.className = `badge ${tone}`; };
+      const setStage = (id, state) => { $(id).className = `stage ${state}`; };
+      const setState = (value) => {
+        const tone = value === 'RESOLVED' ? 'done' : value === 'WAITING_FOR_APPROVAL' ? 'waiting' : value === 'INVESTIGATING' || value === 'NEEDS_HUMAN' ? 'error' : 'pending';
+        setStatus('run-state', value, tone);
+      };
+      const renderTrace = () => {
+        $('trace').innerHTML = run.trace.map((entry, index) => `<div class="trace-row"><span class="trace-num">${String(index + 1).padStart(2, '0')}</span>${escapeHtml(entry)}</div>`).join('');
+      };
+      const renderChat = () => {
+        const labels = { user:'你', debugger:'调试 Agent', modifier:'修改 Agent', tester:'测试 Agent', system:'系统' };
+        $('chat').innerHTML = run.chat.map((message) => `<div class="bubble ${message.actor}"><span class="speaker">${labels[message.actor]}</span>${escapeHtml(message.text)}</div>`).join('');
+        $('chat').scrollTop = $('chat').scrollHeight;
+      };
+      const renderMemory = () => {
+        $('working-memory').textContent = run.working_memory || '无';
+        $('long-memory').innerHTML = run.long_term_memory.length
+          ? run.long_term_memory.map((memory) => `<div class="memory-item">${escapeHtml(memory.summary)}</div>`).join('')
+          : '当前没有可复用的已验证经验。';
+      };
+      const renderOutcome = () => {
+        if (!run.test_report) { $('outcome').classList.add('hidden'); return; }
+        $('outcome').classList.remove('hidden');
+        if (!run.test_report.passed) {
+          $('outcome').innerHTML = '<div class="outcome-icon">!</div><div><h2>验证未通过</h2>补丁不能进入真实代码落地阶段，任务已退回排查。</div>';
+          return;
+        }
+        const sandboxText = run.scenario === 'zongce'
+          ? '已在 Sandbox 中复现“重复提交”缺陷，并在应用补丁后通过云函数模拟测试。'
+          : '已在 Sandbox 中应用补丁并通过回归测试。';
+        const deliveryText = run.delivery
+          ? `真实源码已落地并通过项目测试。备份：${escapeHtml(run.delivery.backup_path)}；审计：${escapeHtml(run.delivery.audit_path)}。`
+          : '真实项目尚未修改；若要落地，请在下方勾选确认，再在弹窗中进行最后一次确认。';
+        $('outcome').innerHTML = `<div class="outcome-icon">✓</div><div><h2>${run.delivery ? '已完成真实代码落地' : 'Sandbox 验证已通过'}</h2>${sandboxText}<br>${deliveryText}</div>`;
+      };
+      const renderRun = () => {
+        if (!run) return;
+        const scenarioName = run.scenario === 'zongce' ? '综测小程序真实云函数' : 'RepoCare 教学样例';
+        setState(run.state);
+        $('evidence-count').textContent = run.evidence.length;
+        const ragEvidence = run.rag_evidence || [];
+        $('rag-count').textContent = ragEvidence.length;
+        $('model-mode').textContent = run.diagnosis_mode === 'DEEPSEEK' ? `DeepSeek · ${run.model_diagnosis.model_name}` : '规则兜底';
+        $('tool-count').textContent = run.state === 'INTAKE' ? 0 : run.test_report ? 5 : 3;
+        $('write-count').textContent = run.unauthorized_write_count;
+        setStage('stage-debug', 'done');
+        $('pipe-1').className = 'pipe done';
+        setStage('stage-patch', run.state === 'WAITING_FOR_APPROVAL' || run.state === 'NEEDS_HUMAN' ? 'active' : 'done');
+        if (run.test_report) { $('pipe-2').className = 'pipe done'; setStage('stage-test', run.test_report.passed ? 'done' : 'active'); }
+        setStatus('debug-status', run.state === 'NEEDS_HUMAN' ? '需要人工复现' : run.diagnosis_mode === 'DEEPSEEK' ? '模型诊断已校验' : '规则诊断完成', run.state === 'NEEDS_HUMAN' ? 'error' : 'done');
+        const evidenceHtml = run.evidence.map((item) => `<div class="evidence"><div class="path">${escapeHtml(item.path)}</div>${escapeHtml(item.summary)}</div>`).join('');
+        const ragHtml = ragEvidence.length
+          ? `<div class="rag-panel"><h4>RAG 本地知识库证据（只读）</h4>${ragEvidence.map((item) => `<div class="rag-item"><div class="path">${escapeHtml(item.source_path)} · ${escapeHtml(item.heading)}</div><span class="rag-score">相关度 ${Number(item.score).toFixed(3)}</span><br>${escapeHtml(item.content.slice(0, 260))}${item.content.length > 260 ? '…' : ''}</div>`).join('')}</div>`
+          : '<div class="rag-panel"><h4>RAG 本地知识库证据</h4>没有命中可引用的脱敏 Markdown；调试 Agent 不会编造知识库证据。</div>';
+        const modelHtml = run.model_diagnosis
+          ? `<div class="model-insight"><strong>DeepSeek 结构化诊断（只读建议）</strong><p><strong>模型：</strong>${escapeHtml(run.model_diagnosis.model_name)}</p><p><strong>根因：</strong>${escapeHtml(run.model_diagnosis.root_cause)}</p><p><strong>建议：</strong>${escapeHtml(run.model_diagnosis.proposed_change_summary)}</p><p><strong>置信度：</strong>${escapeHtml(run.model_diagnosis.confidence)}；<strong>引用：</strong>${run.model_diagnosis.evidence_paths.map(escapeHtml).join('、')}</p>${run.model_diagnosis.risk_notes.length ? `<p><strong>风险：</strong></p><ul>${run.model_diagnosis.risk_notes.map((note) => `<li>${escapeHtml(note)}</li>`).join('')}</ul>` : ''}</div>`
+          : run.model_warning ? `<div class="model-fallback"><strong>DeepSeek 未采用</strong><br>${escapeHtml(run.model_warning)} 现已保守回退到本地规则诊断。</div>` : '';
+        $('debug-body').innerHTML = `<div class="agent-role">目标：${scenarioName}。调试 Agent 只读检索完成；模型只能基于显示出的文件输出 JSON，补丁仍由本地安全规则生成。</div>${evidenceHtml}${ragHtml}${modelHtml}`;
+        if (run.state === 'NEEDS_HUMAN') {
+          setStatus('patch-status', '未生成补丁', 'error');
+          $('patch-body').innerHTML = `<div class="agent-role">当前源码已包含目标保护。为了避免“把同一个补丁再写一遍”，修改 Agent 已停止。</div><div class="approval-box"><strong>下一步需要什么？</strong><br>${escapeHtml(run.approved_scope)}<br><br>请补充可复现的当前数据、日志或操作步骤；系统会重新取证，而不是猜测性修改。</div>`;
+          setStatus('test-status', '等待可复现问题', 'pending');
+          $('test-body').innerHTML = '<div class="agent-role">测试 Agent 不会验证一个不存在的补丁。</div>等待新的复现证据。';
+          $('feedback-panel').classList.add('hidden');
+          renderTrace();
+          renderChat();
+          renderMemory();
+          renderOutcome();
+          return;
+        }
+        if (!run.test_report) {
+          setStatus('patch-status', '等待批准', 'waiting');
+          $('patch-body').innerHTML = `<div class="agent-role">修改 Agent 只给出最小改动；不会修改 tests/。</div><pre>${escapeHtml(run.patch_diff)}</pre><div class="approval-box"><strong>批准范围</strong><br>${escapeHtml(run.approved_scope)}</div><button id="approve" class="approval">批准补丁，在 Sandbox 中运行测试</button>`;
+          $('approve').addEventListener('click', approve);
+          setStatus('test-status', '等待补丁', 'pending');
+          $('test-body').innerHTML = '<div class="agent-role">测试 Agent 不参与修改，只负责复现和验证。</div>等待人工批准。';
+          $('feedback-panel').classList.remove('hidden');
+        } else {
+          setStatus('patch-status', 'Sandbox 已应用', 'done');
+          const deliveryHtml = run.scenario === 'zongce' && !run.delivery && run.test_report.passed
+            ? `<div class="delivery"><strong>真实代码落地（第二次确认）</strong><br>系统将先比对源码哈希、创建备份，再写入已验证 diff，并运行真实项目的模拟测试；失败会自动回滚。<label class="confirm-check"><input id="delivery-confirmed" type="checkbox" />我确认：这会修改本机的真实云函数源码，但不会自动部署到微信云环境。</label><button id="apply-real" class="secondary" disabled>确认写入真实云函数并回归测试</button></div>`
+            : run.delivery ? '<div class="delivery"><strong>已落地。</strong>真实云函数已写入，备份与审计文件已生成；部署到微信云环境仍需人工操作。</div>' : '';
+          $('patch-body').innerHTML = `<div class="agent-role">补丁只写入临时目录；真实项目源文件经过一致性检查，未被修改。</div><pre>${escapeHtml(run.patch_diff)}</pre>${deliveryHtml}`;
+          if ($('apply-real')) {
+            $('delivery-confirmed').addEventListener('change', (event) => {
+              $('apply-real').disabled = !event.target.checked;
+            });
+            $('apply-real').addEventListener('click', applyRealPatch);
+          }
+          const testTone = run.test_report.passed ? 'done' : 'error';
+          setStatus('test-status', run.test_report.passed ? '验证通过' : '验证失败', testTone);
+          const passedText = run.scenario === 'zongce'
+            ? '已先复现重复提交 Bug；修复后云函数模拟测试通过。'
+            : '回归测试通过：总分回到 4。';
+          $('test-body').innerHTML = `<div class="agent-role">测试 Agent 的结论独立于修改 Agent。</div><strong>${run.test_report.passed ? passedText : '回归测试失败：退回排查。'}</strong>`;
+          $('duration').textContent = `${run.test_report.duration_ms} ms`;
+          $('test-output').classList.remove('hidden');
+          $('test-output').textContent = run.test_report.output;
+          $('feedback-panel').classList.add('hidden');
+        }
+        renderTrace();
+        renderChat();
+        renderMemory();
+        renderOutcome();
+      };
+      const request = async (url, options) => {
+        const response = await fetch(url, options);
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || '请求失败');
+        return payload;
+      };
+      const start = async () => {
+        try {
+          $('start').disabled = true;
+          $('message').textContent = '调试 Agent 正在读取代码、模型与回归测试…';
+          run = await request('/api/runs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({title:$('title').value, description:$('description').value, scenario}) });
+          $('message').textContent = '已生成证据与最小补丁提案，等待你的批准。';
+          renderRun();
+        } catch (error) { $('message').textContent = `启动失败：${error.message}`; }
+        finally { $('start').disabled = false; }
+      };
+      const approve = async () => {
+        try {
+          $('message').textContent = '修改 Agent 正在临时 Sandbox 应用 diff；测试 Agent 正在执行 pytest…';
+          run = await request(`/api/runs/${run.run_id}/approve`, { method:'POST' });
+          $('message').textContent = run.state === 'RESOLVED' ? '验证完成：真实项目文件没有被改动。' : '验证失败：任务已退回排查。';
+          renderRun();
+        } catch (error) { $('message').textContent = `批准失败：${error.message}`; }
+      };
+      const applyRealPatch = async () => {
+        try {
+          if (!window.confirm('确认将已验证补丁写入真实综测云函数？系统会先创建备份；失败会自动回滚。')) return;
+          $('message').textContent = '正在执行真实代码落地：比对源码哈希、备份、写入补丁并运行真实项目测试…';
+          run = await request(`/api/runs/${run.run_id}/apply`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({confirmed:true}) });
+          $('message').textContent = '真实云函数已落地并通过测试；下一步由你决定是否部署到微信云环境。';
+          renderRun();
+        } catch (error) { $('message').textContent = `未落地：${error.message}`; }
+      };
+      const feedback = async () => {
+        try {
+          run = await request(`/api/runs/${run.run_id}/feedback`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({constraint:$('feedback').value}) });
+          $('message').textContent = '旧审批已失效，新的范围已经写入任务 trace。';
+          renderRun();
+        } catch (error) { $('message').textContent = `反馈失败：${error.message}`; }
+      };
+      const loadZongcePreset = () => {
+        scenario = 'zongce';
+        $('title').value = '同一网页条目重复提交后，综测认定总分重复累计';
+        $('description').value = '学生在“智育”板块的网页第 2 项误点提交两次同一获奖材料。两条材料都可能被审核为认定通过，按学生汇总会把同一项分值重复累计。请定位是否缺少提交幂等性校验，给出最小修复方案。只允许修改云函数 proofs.create；不要修改前端、不要删除历史数据，必须先在模拟云函数 Sandbox 中复现并验证。';
+        $('message').textContent = '已载入真实综测小程序场景：原小程序只读，后续修复只会写入临时 Sandbox。';
+      };
+      $('start').addEventListener('click', start);
+      $('send-feedback').addEventListener('click', feedback);
+      $('load-zongce').addEventListener('click', loadZongcePreset);
+    </script>
+  </body>
+</html>

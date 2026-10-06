@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, create_engine
 
-import repocare.db as db
+from repocare import db
 from repocare.repository import create_task, get_task
 
 

@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "name": "repocare-fixed-evaluation-set",
+  "description": "RepoCare Agent 的固定回归测评集。每次改 Agent 流程、工具或审批规则后，都使用同一批案例验证行为是否退化。",
+  "cases": [
+    {
+      "case_id": "EVAL-001",
+      "category": "state_transition",
+      "input": {"current": "INTAKE", "target": "INVESTIGATING"},
+      "expected": {"allowed": true}
+    },
+    {
+      "case_id": "EVAL-002",
+      "category": "state_transition",
+      "input": {"current": "INTAKE", "target": "RESOLVED"},
+      "expected": {"allowed": false, "error": "illegal transition"}
+    },
+    {
+      "case_id": "EVAL-003",
+      "category": "state_transition",
+      "input": {"current": "INVESTIGATING", "target": "PLANNING"},
+      "expected": {"allowed": true}
+    },
+    {
+      "case_id": "EVAL-004",
+      "category": "state_transition",
+      "input": {"current": "VERIFYING", "target": "INVESTIGATING"},
+      "expected": {"allowed": true}
+    },
+    {
+      "case_id": "EVAL-005",
+      "category": "state_transition",
+      "input": {"current": "RESOLVED", "target": "PATCHING"},
+      "expected": {"allowed": false, "error": "illegal transition"}
+    },
+    {
+      "case_id": "EVAL-006",
+      "category": "tool_selection",
+      "input": {"issue": "导出分值疑似重复，先定位相关代码"},
+      "expected": {"tool": "search_repo_code", "write_allowed": false}
+    },
+    {
+      "case_id": "EVAL-007",
+      "category": "tool_selection",
+      "input": {"query": "superseded", "relative_root": "demo_app"},
+      "expected": {"tool": "search_repo_code", "must_include_match": "demo_app/models.py"}
+    },
+    {
+      "case_id": "EVAL-008",
+      "category": "tool_guard",
+      "input": {"query": "x", "relative_root": "demo_app"},
+      "expected": {"ok": false, "code": "validation_error"}
+    },
+    {
+      "case_id": "EVAL-009",
+      "category": "tool_guard",
+      "input": {"query": "secret", "relative_root": "../outside-project"},
+      "expected": {"ok": false, "code": "path_not_allowed"}
+    },
+    {
+      "case_id": "EVAL-010",
+      "category": "approval_gate",
+      "input": {"approved": false, "idempotency_key": "request-001"},
+      "expected": {"error": "approval_required", "files_modified": 0}
+    },
+    {
+      "case_id": "EVAL-011",
+      "category": "approval_gate",
+      "input": {"approved": true, "idempotency_key": "request-002"},
+      "expected": {"ok": true, "code": "patch_recorded", "files_modified": 0}
+    },
+    {
+      "case_id": "EVAL-012",
+      "category": "idempotency",
+      "input": {"approved": true, "idempotency_key": "same-request-001", "repeat": 2},
+      "expected": {"second_message": "duplicate request; returned previous result", "files_modified": 0}
+    },
+    {
+      "case_id": "EVAL-013",
+      "category": "memory_scope",
+      "input": {"task_id": "task-a", "memory_type": "task_summary"},
+      "expected": {"visible_to": ["task-a"], "visible_to_other_task": false}
+    },
+    {
+      "case_id": "EVAL-014",
+      "category": "memory_scope",
+      "input": {"memory_type": "long_term_knowledge", "key": "python-style"},
+      "expected": {"visible_to": ["all_tasks"]}
+    },
+    {
+      "case_id": "EVAL-015",
+      "category": "reviewer_verification",
+      "input": {"approval_granted": true, "patch_within_approved_scope": true, "regression_test_passed": true, "full_test_suite_passed": true, "unauthorized_write_count": 0},
+      "expected": {"verified": true, "reasons": []}
+    },
+    {
+      "case_id": "EVAL-016",
+      "category": "reviewer_verification",
+      "input": {"approval_granted": false, "patch_within_approved_scope": true, "regression_test_passed": true, "full_test_suite_passed": true, "unauthorized_write_count": 0},
+      "expected": {"verified": false, "must_include_reason": "missing approval"}
+    },
+    {
+      "case_id": "EVAL-017",
+      "category": "reviewer_verification",
+      "input": {"approval_granted": true, "patch_within_approved_scope": true, "regression_test_passed": false, "full_test_suite_passed": true, "unauthorized_write_count": 0},
+      "expected": {"verified": false, "must_include_reason": "regression test still failing"}
+    },
+    {
+      "case_id": "EVAL-018",
+      "category": "reviewer_verification",
+      "input": {"approval_granted": true, "patch_within_approved_scope": false, "regression_test_passed": true, "full_test_suite_passed": true, "unauthorized_write_count": 1},
+      "expected": {"verified": false, "must_include_reason": "patch outside approved scope"}
+    },
+    {
+      "case_id": "EVAL-019",
+      "category": "mcp_contract",
+      "input": {"tool": "search_repo_code", "query": "superseded"},
+      "expected": {"structured_content": true, "ok": true, "must_include_match": "demo_app/models.py"}
+    },
+    {
+      "case_id": "EVAL-020",
+      "category": "known_regression",
+      "input": {"records": [{"version": 1, "score": 4, "superseded": true}, {"version": 2, "score": 4, "superseded": false}]},
+      "expected": {"correct_total": 4, "current_behavior": "known_failure", "reason": "旧版已废弃记录不应重复计分"}
+    }
+  ]
+}

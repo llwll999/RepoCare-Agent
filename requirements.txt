@@ -1,0 +1,9 @@
+fastapi
+httpx
+mcp[cli]
+openai
+pytest
+python-dotenv
+ruff
+sqlmodel
+uvicorn

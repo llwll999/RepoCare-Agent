@@ -39,7 +39,7 @@ def search_code(input_data: SearchCodeInput) -> ToolResult:
     for file_path in root.rglob("*.py"):
         text = file_path.read_text(encoding="utf-8")
         if input_data.query.lower() in text.lower():
-            matches.append(str(file_path.relative_to(PROJECT_ROOT)))
+            matches.append(file_path.relative_to(PROJECT_ROOT).as_posix())
 
     return ToolResult(
         ok=True,
