@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from repocare.deepseek import DeepSeekDiagnosisError, diagnose_with_deepseek
+from repocare.langgraph_workflow import approve_langgraph_run, start_langgraph_run
 from repocare.memory_store import load_run_checkpoint, save_run_checkpoint
 from repocare.multi_agent_runtime import (
     ApplyInput,
@@ -14,11 +14,6 @@ from repocare.multi_agent_runtime import (
     IssueInput,
     add_feedback,
     apply_verified_zongce_patch,
-    approve_and_test,
-    build_debugger_context,
-    create_demo_run,
-    persist_verified_memory,
-    retrieve_rag_evidence,
 )
 from repocare.rag_store import (
     KnowledgeSearchInput,
@@ -38,24 +33,7 @@ def demo_page() -> FileResponse:
 
 @app.post("/api/runs", response_model=DemoRun, status_code=201)
 def start_run(issue: IssueInput) -> DemoRun:
-    rag_evidence = retrieve_rag_evidence(issue)
-    try:
-        model_diagnosis = diagnose_with_deepseek(
-            title=issue.title,
-            description=issue.description,
-            source_files=build_debugger_context(issue.scenario, rag_evidence),
-        )
-        run = create_demo_run(
-            issue,
-            model_diagnosis=model_diagnosis,
-            rag_evidence=rag_evidence,
-        )
-    except DeepSeekDiagnosisError as error:
-        run = create_demo_run(
-            issue,
-            model_warning=str(error),
-            rag_evidence=rag_evidence,
-        )
+    run = start_langgraph_run(issue)
     runs[run.run_id] = run
     save_run_checkpoint(run.run_id, run.model_dump(mode="json"))
     return run
@@ -95,7 +73,7 @@ def submit_feedback(run_id: str, feedback: FeedbackInput) -> DemoRun:
 def approve_run(run_id: str) -> DemoRun:
     run = get_run(run_id)
     try:
-        verified = persist_verified_memory(approve_and_test(run))
+        verified = approve_langgraph_run(run)
         save_run_checkpoint(verified.run_id, verified.model_dump(mode="json"))
         return verified
     except ValueError as error:

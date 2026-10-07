@@ -1,16 +1,16 @@
-# RepoCare：RAG / LangChain 简历素材与面试表达
+# RepoCare：RAG / LangGraph 简历素材与面试表达
 
-> 用途：写简历、准备一面/二面、项目答辩。本文只把**当前代码已经实现的能力**写成“已完成”；LangChain 部分明确区分为“可演进方案”，不要提前写进简历。
+> 用途：写简历、准备一面/二面、项目答辩。本文只把**当前代码已经实现的能力**写成“已完成”；现在可写 LangGraph StateGraph，LangChain 高层 RAG 组件仍属于可演进方案。
 
-## 1. 真实性结论：简历上能不能写 LangChain？
+## 1. 真实性结论：简历上能不能写 LangGraph / LangChain？
 
-**当前不能写“使用 LangChain 开发”。**
+**当前可以写“使用 LangGraph StateGraph + SQLite Checkpoint 编排可暂停、可恢复的 Agent 工作流”。但不能笼统写“使用 LangChain 高层 Agent / Retriever 开发”。**
 
-当前 `requirements.txt` 中没有 `langchain`，代码也没有 `import langchain`。RepoCare 当前采用原生 Python + FastAPI + SQLite + Pydantic 实现本地 RAG、MCP 与 Agent Runtime。这不是缺点：你可以解释为“第一版刻意降低框架耦合，先把检索、证据、权限和测试边界写清楚”。
+当前 `requirements.txt` 中新增了 `langgraph` 与 `langgraph-checkpoint-sqlite`，代码使用 `StateGraph`、`interrupt()`、`Command(resume=...)` 和 `SqliteSaver` 实现审批暂停与恢复。LangGraph 会传递依赖 `langchain-core`，但 RepoCare 的切块、稀疏检索和工具协议仍由原生 Python 实现。
 
-可以写：**RAG、Local Knowledge Base、本地稀疏向量检索、FastAPI、SQLite、MCP、DeepSeek API、Pydantic、pytest、Sandbox 验证。**
+可以写：**LangGraph StateGraph、SQLite Checkpoint、RAG、Local Knowledge Base、本地稀疏向量检索、FastAPI、MCP、DeepSeek API、Pydantic、pytest、Sandbox 验证。**
 
-暂时不要写：**LangChain、FAISS、Chroma、sentence-transformers、语义 Embedding、LangGraph。**除非以后真的将它们安装、接入并完成测试。
+暂时不要写：**LangChain 高层 Agent/Loader/Retriever、FAISS、Chroma、sentence-transformers、语义 Embedding。**除非以后真的将它们安装、接入并完成测试。
 
 ---
 
@@ -103,11 +103,11 @@ RAG 存外部可检索资料，例如规则文档、接口说明、Runbook；长
 
 上下文会膨胀、噪声和成本上升，还可能带出敏感信息。RepoCare 只将白名单源码片段和 Top-K 检索结果发给模型，并验证模型引用的路径必须来自已提供文件。这样能限制上下文、提高可追溯性，也降低 Prompt Injection 和越权风险。
 
-### Q6：你的项目用了 LangChain 吗？
+### Q6：你的项目用了 LangChain / LangGraph 吗？
 
-当前版本没有直接使用 LangChain。我先用原生 Python 把切块、检索、结构化输出、状态机、审批和测试边界实现并测通，避免框架掩盖关键逻辑。之后如果文档类型变多或要切换 Embedding/向量库，可以引入 LangChain 的 Loader、Text Splitter 和 Retriever 抽象，但仍需要保留项目自己的权限控制、引用校验和 Sandbox 测试。
+当前版本使用 LangGraph 编排状态图和人工审批中断：调试、提案、批准、测试均是显式节点，SQLite Checkpoint 以 `thread_id` 保存暂停和恢复所需状态。RAG 切块、检索、结构化输出、工具权限和 Sandbox 仍由原生 Python 实现，避免高层框架掩盖关键边界。之后文档类型变多或要切换 Embedding/向量库时，可以再引入 LangChain 的 Loader、Text Splitter 和 Retriever 抽象。
 
-这不是“不会 LangChain”，而是对工程取舍的说明。前提是你确实能解释现有实现；如果面试岗位明确要求 LangChain，建议先完成下面第 7 节的真实接入后，再把 LangChain 写入简历。
+这不是“不会 LangChain”，而是对工程取舍的说明。你可以明确说自己选择 LangGraph 管理有状态工作流，但没有为了关键词强行将自定义 RAG 改成高层 LangChain 组件；若面试岗位明确要求 LangChain RAG，再完成下面第 7 节的真实接入后再写入简历。
 
 ---
 
@@ -124,7 +124,7 @@ RAG 存外部可检索资料，例如规则文档、接口说明、Runbook；长
 
 ---
 
-## 7. LangChain：后续真实接入路线（完成后才能写进简历）
+## 7. LangChain RAG：后续真实接入路线（完成后才能写进简历）
 
 若要把 LangChain 真正接进项目，建议只替换“文档加载 / 切块 / 检索”这一层，不要把审批、状态机和 Sandbox 交给框架：
 
@@ -145,7 +145,7 @@ RAG 存外部可检索资料，例如规则文档、接口说明、Runbook；长
 ## 8. 面试前最后检查
 
 - [ ] 不把“本地稀疏检索”说成已经用了 FAISS / Embedding。
-- [ ] 不把“理解 LangChain”说成“项目已使用 LangChain”。
+- [ ] 不把“LangGraph 工作流”扩大表述成“项目已使用 LangChain 高层 Agent / Retriever”。
 - [ ] 能打开网页，展示 RAG 命中的路径、标题和片段。
 - [ ] 能解释为什么 RAG 不等于正确修复。
 - [ ] 能说清 `NEEDS_HUMAN` 的价值：当前代码已有守卫时停止修改，避免 Agent 重复写补丁。

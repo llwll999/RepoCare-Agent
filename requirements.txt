@@ -1,5 +1,7 @@
 fastapi
 httpx
+langgraph>=1.2,<2
+langgraph-checkpoint-sqlite>=3,<4
 mcp[cli]
 openai
 pytest

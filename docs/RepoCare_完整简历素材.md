@@ -4,7 +4,7 @@
 >
 > 使用场景：写实习简历、准备 Agent / 后端 / AI 应用开发一面二面、项目答辩。
 >
-> **真实性边界**：本文件只描述当前代码已经实现的能力。项目当前**没有安装或调用 LangChain / LangGraph**；它是使用原生 Python 自行实现状态机、RAG、工具边界和 Agent 编排的工程。不要把“理解其架构”写成“项目使用过该框架”。
+> **真实性边界**：本文件只描述当前代码已经实现的能力。项目现在使用 **LangGraph `StateGraph` + SQLite Checkpoint** 编排“调试 → 提案 → 人工审批 → 测试”工作流；RAG、工具边界、补丁规则和 Sandbox 仍由原生 Python 实现。项目没有使用 LangChain 的高层 Agent / Retriever API，不能笼统写成“基于 LangChain 全栈开发”。
 
 ---
 
@@ -27,9 +27,9 @@
 
 ### 版本 A：投递 AI Agent / 大模型应用开发岗位（推荐）
 
-**RepoCare Agent｜多 Agent 缺陷修复与验证平台｜Python / FastAPI / SQLite / MCP / Local RAG**
+**RepoCare Agent｜多 Agent 缺陷修复与验证平台｜Python / FastAPI / LangGraph / SQLite / MCP / Local RAG**
 
-- 设计并实现面向自然语言 Bug 的三角色 Agent 工作流：调试 Agent 检索受控代码与知识库形成可追溯证据，修改 Agent 仅生成最小 diff，测试 Agent 在隔离 Sandbox 中独立执行回归验证，避免模型“自说自话”式验收。
+- 使用 LangGraph `StateGraph` 编排面向自然语言 Bug 的三角色 Agent 工作流：调试 Agent 检索受控代码与知识库形成可追溯证据，修改 Agent 仅生成最小 diff，图在人工审批节点中断并可从 SQLite Checkpoint 恢复，测试 Agent 在隔离 Sandbox 中独立执行回归验证。
 - 基于原生 Python 构建任务状态机与审批门禁，约束 `INTAKE → INVESTIGATING → PLANNING → WAITING_FOR_APPROVAL → PATCHING → VERIFYING → RESOLVED` 等合法流转；非法跳转抛错并由 pytest 覆盖。
 - 实现本地 RAG 知识库：限定读取脱敏 Markdown，按标题/段落切块并保存路径、标题、哈希等元数据；采用中英文稀疏特征与余弦相似度离线召回 Top-K 证据，检索结果同时展示于 UI 并注入诊断上下文。
 - 接入 MCP 只读代码检索与知识检索工具，结合 Pydantic 输入校验、路径白名单、幂等 Ledger、人工二次确认、SHA-256 校验、备份与失败回滚，限制模型和工具的写入能力。
@@ -46,7 +46,7 @@
 
 ### 技术关键词（一行放简历即可）
 
-`Python · FastAPI · Pydantic · SQLModel · SQLite · pytest · Ruff · GitHub Actions · MCP · Local RAG · DeepSeek API（可选诊断） · 状态机 · Sandbox · 人工审批 · 幂等 · Git`
+`Python · FastAPI · LangGraph StateGraph · SQLite Checkpoint · Pydantic · SQLModel · pytest · Ruff · GitHub Actions · MCP · Local RAG · DeepSeek API（可选诊断） · 状态机 · Sandbox · 人工审批 · 幂等 · Git`
 
 ---
 
@@ -59,7 +59,7 @@
 FastAPI + Web UI（创建 Run、查看进度、反馈、批准）
         │
         ▼
-原生 Python Orchestrator（DemoRun + 有限状态机）
+LangGraph StateGraph（DemoRun + 有限状态机 + SQLite Checkpoint）
         │
         ├── 调试 Agent：只读代码搜索 + Local RAG 证据 + 可选 DeepSeek 结构化诊断
         ├── 修改 Agent：按白名单规则生成最小 diff，不直接写真实文件
@@ -91,7 +91,7 @@ PATCHING → VERIFYING → RESOLVED
 | 模块 | 当前实现 | 对应能力 / 面试价值 |
 | --- | --- | --- |
 | API 与数据模型 | FastAPI 路由；Pydantic 定义请求、响应、诊断和运行对象 | 接口设计、参数校验、类型边界 |
-| 状态机 | `TaskState` 与 `ALLOWED_TRANSITIONS` 白名单；`require_transition` 拒绝非法跳转 | 复杂流程建模、避免 ReAct 无限制循环 |
+| 工作流与状态机 | LangGraph `StateGraph` 的 `debugger → modifier → human_approval → tester` 显式节点；`TaskState` 与 `ALLOWED_TRANSITIONS` 白名单拒绝非法跳转 | 可暂停恢复、复杂流程建模、避免 ReAct 无限制循环 |
 | 任务与检查点 | SQLModel 的 `TaskRow`、`CheckpointRow`；Repository 统一读写 | 持久化、分层、重启后可恢复 |
 | 三角色工作流 | 调试取证 → 受控提案 → 独立测试；顺序编排而非无目的并发 | Agent 分工、可验证性、工程取舍 |
 | Local RAG | Markdown 白名单、标题/段落切块、哈希、SQLite 索引、Top-K 相似检索 | 知识库构建、来源可追溯、上下文控制 |
@@ -118,7 +118,7 @@ PATCHING → VERIFYING → RESOLVED
 
 - 不是 FAISS / Chroma 向量数据库。
 - 不是神经网络 Embedding 语义检索。
-- 没有使用 LangChain 的 Loader、TextSplitter 或 Retriever。
+- 没有使用 LangChain 的高层 Loader、TextSplitter 或 Retriever；RAG 切块和检索由项目自定义代码实现。
 - 不能说“已经解决所有幻觉”；项目通过证据展示、白名单和测试降低风险，而不是消灭风险。
 
 ### 面试中 30 秒解释 RAG
@@ -163,10 +163,10 @@ PATCHING → VERIFYING → RESOLVED
 
 ## 8. 可验证的证据（答辩和简历的“硬证据”）
 
-- 截止 2026-10-06，在项目独立虚拟环境执行 `python -m pytest -q`：**35 passed**（另有一条第三方依赖弃用警告）。
+- 截止 2026-10-07，在项目独立虚拟环境执行 `python -m pytest -q`：**37 passed**（另有一条第三方依赖弃用警告）。
 - `ruff check src tests` 通过。
 - `evals/fixed_cases.json` 包含 **20 条**固定测评用例，覆盖合法/非法状态流转、工具选择、路径越界、审批门禁、幂等与记忆范围。
-- `tests/` 下有 **16 个测试模块**，覆盖状态机、API、Repository、工具、Memory、Planner、Reviewer、MCP、RAG、DeepSeek 协议、三 Agent Runtime 和综合测评 Sandbox 场景。
+- `tests/` 下有 **17 个测试模块**，覆盖状态机、API、Repository、工具、Memory、Planner、Reviewer、MCP、RAG、DeepSeek 协议、LangGraph 中断/恢复、三 Agent Runtime 和综合测评 Sandbox 场景。
 - `.github/workflows/ci.yml` 配置了 GitHub Actions，在推送和 Pull Request 时执行 Ruff 与核心质量门禁。
 
 > 面试表述建议：说“我本地跑出了 35 条测试通过，并给核心质量门禁接了 CI”，不要说“100% 覆盖”或“企业生产已上线”。
@@ -181,9 +181,9 @@ PATCHING → VERIFYING → RESOLVED
 
 ## 10. 高频面试题：简洁且真实的回答
 
-### Q1：你的项目用了 LangChain 吗？
+### Q1：你的项目用了 LangChain / LangGraph 吗？
 
-**没有直接使用。** 当前版本的状态机、切块、检索、模型协议、工具和审批都是原生 Python 实现的。我这样做是为了先把输入输出、权限、证据来源和测试边界做透明。后续如果文档源变多、需要切换不同的 Embedding 或向量数据库，我会评估用 LangChain 的 Loader / Text Splitter / Retriever 抽象替换 RAG 层；但状态机、审批和 Sandbox 不会交给框架黑箱处理。
+**用了 LangGraph，但没有使用 LangChain 的高层 Agent / Retriever API。** 我将现有流程映射为 `debugger → modifier → human_approval interrupt → tester` 的 StateGraph，并使用 SQLite Checkpoint 保存线程状态，因此人工审批后可以从同一 `thread_id` 恢复。RAG 切块、稀疏检索、模型协议、工具白名单和 Sandbox 仍是原生 Python，以便权限与测试边界保持透明。后续文档源变多时，再评估只用 LangChain 的 Loader / Text Splitter / Retriever 抽象替换 RAG 层。
 
 ### Q2：为什么不用“模型自己判断已经修好”？
 
@@ -211,11 +211,12 @@ RAG 是从稳定知识文档中按需检索证据；短期记忆保存这次任�
 | Local RAG（稀疏检索 + SQLite） | 已实现 | 可以 |
 | MCP 工具服务器 | 已实现 | 可以 |
 | DeepSeek API 结构化诊断 | 已实现，但为可选能力 | 可以写“接入可选模型诊断”，不要写模型全自动修复 |
-| LangChain | 未安装、未 import | 不可以 |
-| LangGraph | 未安装、未使用 | 不可以 |
+| LangGraph `StateGraph` + SQLite Checkpoint | 已实现并有中断/恢复测试 | 可以 |
+| `langchain-core` | LangGraph 的传递依赖 | 可在技术栈中说明依赖，但不写“使用 LangChain 高层 Agent/Retriever” |
+| LangChain 高层 Agent / Loader / Retriever | 未直接使用 | 不可以 |
 | Embedding + FAISS / Chroma | 未实现 | 不可以 |
 
-如果之后要真正加入 LangChain，最合理的改动是替换 RAG 的“加载 / 切块 / Retriever”层，并补齐对应测试；如果要使用 LangGraph，则把当前的状态与审批暂停/恢复显式映射成图节点。完成真实集成和回归测试后，才能将其写入简历。
+后续若要扩大 LangChain 使用范围，最合理的改动是替换 RAG 的“加载 / 切块 / Retriever”层，并补齐对应测试；不需要把审批、状态机和 Sandbox 交给高层链式封装。当前的 LangGraph 工作流已经完成真实集成和回归测试，可以写入简历。
 
 ---
 
@@ -224,6 +225,5 @@ RAG 是从稳定知识文档中按需检索证据；短期记忆保存这次任�
 - [ ] 把项目链接放到项目名称后：`GitHub: github.com/llwll999/RepoCare-Agent`
 - [ ] 优先选版本 A 的 3–5 条，不要整页堆关键词。
 - [ ] 面试前在本机跑一次 `python -m pytest -q`，准备展示终端结果和 Web Demo。
-- [ ] 面试只描述“当前代码已完成”的内容；不要把计划中的 LangChain、向量库或生产部署说成已上线。
+- [ ] 面试只描述“当前代码已完成”的内容；可以写 LangGraph，但不要把计划中的 LangChain 高层组件、向量库或生产部署说成已上线。
 - [ ] 准备一个失败案例：源码已存在防重规则时，系统返回 `NEEDS_HUMAN`，这是安全策略而非 Bug。
-

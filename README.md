@@ -2,7 +2,9 @@
 
 一个用于练习“缺陷定位、受控修复与结果验证”的本地 Agent 工程。
 
-当前实现包含：状态机、SQLite 检查点与长期记忆、受控工具/MCP、三 Agent Sandbox 验证，以及本地 RAG 知识库。
+当前实现包含：LangGraph 状态化工作流与 SQLite Checkpoint、状态机、长期记忆、受控工具/MCP、三 Agent Sandbox 验证，以及本地 RAG 知识库。
+
+工作流采用显式的 `debugger → modifier → human approval interrupt → tester` 节点；LangGraph 只负责执行编排、暂停与恢复，RAG、补丁规则、Sandbox 测试与真实写入门禁仍由 RepoCare 的本地代码负责。
 
 ## 本地 RAG 知识库
 
